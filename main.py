@@ -1,31 +1,86 @@
-import json
-import os
-from anonymizer import PIIAnonymizer
+"""
+Main entry point for AI Navigator application
+Predictive incident detection platform with GigaChat API integration
+"""
 
-def run_pipeline():
-    print("=== [AI-Штурман] Запуск пайплайна обработки заявок ===")
-    anonymizer = PIIAnonymizer()
+import asyncio
+import logging
+from typing import Optional
+from dotenv import load_dotenv
+import os
+
+from app.services.anonymizer import PIIAnonymizer
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+
+async def initialize_app() -> Optional[PIIAnonymizer]:
+    """
+    Initialize the AI Navigator application
     
-    data_path = os.path.join("data", "synthetic_tickets.json")
-    if not os.path.exists(data_path):
-        print(f"Ошибка: файл {data_path} не найден.")
+    Returns:
+        PIIAnonymizer: Anonymizer service for data protection
+    """
+    try:
+        logger.info("🚀 Initializing AI Navigator...")
+        
+        # Load environment variables
+        load_dotenv()
+        gigachat_api_key = os.getenv("GIGACHAT_API_KEY")
+        
+        if not gigachat_api_key:
+            logger.error("❌ GIGACHAT_API_KEY not found in environment variables")
+            return None
+        
+        logger.info("✅ Environment variables loaded")
+        
+        # Initialize PII Anonymizer
+        anonymizer = PIIAnonymizer()
+        logger.info("✅ PII Anonymizer initialized")
+        
+        return anonymizer
+        
+    except Exception as e:
+        logger.error(f"❌ Initialization error: {str(e)}", exc_info=True)
+        return None
+
+
+async def main():
+    """
+    Main application entry point
+    """
+    logger.info("=" * 60)
+    logger.info("AI Navigator - Predictive Incident Detection")
+    logger.info("=" * 60)
+    
+    # Initialize application
+    anonymizer = await initialize_app()
+    
+    if anonymizer is None:
+        logger.error("❌ Failed to initialize application")
         return
     
-    with open(data_path, "r", encoding="utf-8") as f:
-        tickets = json.load(f)
-    
-    print(f"Загружено заявок для анализа: {len(tickets)}")
-    print("-" * 60)
-    
-    for ticket in tickets:
-        raw_desc = ticket.get("description", "")
-        clean_desc = anonymizer.mask_text(raw_desc)
-        print(f"[ID: {ticket['id']}] ФЗ-152 Маскирование -> {clean_desc}")
+    try:
+        logger.info("✅ Application initialized successfully")
+        logger.info("🔄 Ready to process incidents...")
+        
+        # Application main loop would go here
+        # This is a placeholder for the main incident processing logic
+        
+        logger.info("✅ Application running...")
+        
+    except KeyboardInterrupt:
+        logger.info("⏸️  Application interrupted by user")
+    except Exception as e:
+        logger.error(f"❌ Application error: {str(e)}", exc_info=True)
+    finally:
+        logger.info("🛑 Shutting down AI Navigator...")
 
-    print("-" * 60)
-    print("Имитация векторного анализа через EmbeddingsGigaR и GigaChat-2-Max...")
-    print("🔥 [АНОМАЛИЯ ОБНАРУЖЕНА]: Кластер сбоев провайдера связи в районе ул. Тверская.")
-    print("✅ [Human-in-the-Loop]: Карточка массового инцидента сформирована за 15 минут и передана в ДЦ.")
 
 if __name__ == "__main__":
-    run_pipeline()
+    asyncio.run(main())
