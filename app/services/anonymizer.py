@@ -11,7 +11,7 @@ class PIIAnonymizer:
     def __init__(self):
         self.patterns = {
             "phone": re.compile(
-                r"(?<!\d)(?:\+7|8)[\s\-()]?\d{3}[\s\-()]?\d{3}[\s\-]?\d{2}[\s\-]?\d{2}(?!\d)"
+                r"(?<!\d)(?:\+7|8)[\s\-()]*\d{3}[\s\-()]*\d{3}[\s\-]?\d{2}[\s\-]?\d{2}(?!\d)"
             ),
             "email": re.compile(
                 r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"
@@ -48,3 +48,4 @@ class PIIAnonymizer:
         result = self.patterns["card"].sub("[CARD]", result)
 
         return result
+
