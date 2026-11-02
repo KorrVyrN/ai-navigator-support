@@ -21,7 +21,11 @@ class IncidentGroup(BaseModel):
 def group_incidents(tickets: list[TicketInput], threshold: int = 3, window_minutes: int = 60) -> list[IncidentGroup]:
     """Group nearby tickets by region and equipment within a rolling time window."""
     buckets = defaultdict(list)
+    seen_ids = set()
     for ticket in tickets:
+        if ticket.id in seen_ids:
+            continue
+        seen_ids.add(ticket.id)
         stamp = ticket.timestamp
         if stamp.tzinfo is None:
             stamp = stamp.replace(tzinfo=timezone.utc)
