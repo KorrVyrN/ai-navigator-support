@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 from app.auth import require_api_token
 from app.services.knowledge_search import Article, SearchHit, search_articles
+from app.services.demo_repository import DemoTicketRepository
 from app.services.incident_detection import TicketInput, IncidentGroup, group_incidents
 from app.config import get_settings
 from app.services.gigachat_service import GigaChatError, GigaChatService
@@ -91,3 +92,11 @@ def knowledge_search(body: KnowledgeSearchRequest):
 @app.get('/dashboard', include_in_schema=False)
 def dashboard():
     return FileResponse(Path(__file__).with_name('index.html'))
+
+
+@app.get('/api/v1/demo/tickets', response_model=list[TicketInput],
+         dependencies=[Depends(require_api_token)])
+def demo_tickets():
+    """Synthetic examples only; no access to internal ticketing systems."""
+    source = DemoTicketRepository(Path(__file__).resolve().parent.parent / 'data' / 'synthetic_tickets.json')
+    return source.list_tickets()
