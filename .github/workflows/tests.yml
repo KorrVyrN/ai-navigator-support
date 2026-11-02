@@ -5,6 +5,7 @@ on:
     branches: [ main, develop, codex/complete-api-auth ]
   pull_request:
     branches: [ main, develop, codex/complete-api-auth ]
+  workflow_dispatch:
 
 jobs:
   test:
