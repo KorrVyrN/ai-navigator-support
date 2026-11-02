@@ -1,10 +1,16 @@
 """Authenticated incident-analysis API."""
 from contextlib import asynccontextmanager
+from pathlib import Path
+from fastapi.responses import FileResponse
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.auth import require_api_token
+from app.services.knowledge_search import Article, SearchHit, search_articles
+from app.services.demo_repository import DemoTicketRepository
+from app.services.ticket_store import TicketStore
+from app.services.incident_detection import TicketInput, IncidentGroup, group_incidents
 from app.config import get_settings
 from app.services.gigachat_service import GigaChatError, GigaChatService
 
@@ -57,3 +63,66 @@ async def analyze_incident(body: IncidentRequest, service=Depends(get_service)):
         return await service.analyze_incident(body.description)
     except GigaChatError:
         raise HTTPException(502, 'GigaChat is unavailable; try again later') from None
+
+
+class DetectRequest(BaseModel):
+    tickets: list[TicketInput] = Field(min_length=1, max_length=1000)
+    threshold: int = Field(default=3, ge=2, le=100)
+    window_minutes: int = Field(default=60, ge=1, le=1440)
+
+
+@app.post('/api/v1/incidents/detect', response_model=list[IncidentGroup],
+          dependencies=[Depends(require_api_token)])
+def detect_incidents(body: DetectRequest):
+    """Offline grouping; no ticket data is sent to external services."""
+    return group_incidents(body.tickets, body.threshold, body.window_minutes)
+
+
+class KnowledgeSearchRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=2000)
+    articles: list[Article] = Field(min_length=1, max_length=500)
+    limit: int = Field(default=3, ge=1, le=10)
+
+
+@app.post('/api/v1/knowledge/search', response_model=list[SearchHit],
+          dependencies=[Depends(require_api_token)])
+def knowledge_search(body: KnowledgeSearchRequest):
+    return search_articles(body.query, body.articles, body.limit)
+
+
+@app.get('/dashboard', include_in_schema=False)
+def dashboard():
+    return FileResponse(Path(__file__).with_name('index.html'))
+
+
+@app.get('/api/v1/demo/tickets', response_model=list[TicketInput],
+         dependencies=[Depends(require_api_token)])
+def demo_tickets():
+    """Synthetic examples only; no access to internal ticketing systems."""
+    source = DemoTicketRepository(Path(__file__).resolve().parent.parent / 'data' / 'synthetic_tickets.json')
+    return source.list_tickets()
+
+
+class TicketStoreRequest(BaseModel):
+    ticket: TicketInput
+
+
+def get_ticket_store():
+    """Local development store; configure DATA_DIR for a writable private directory."""
+    import os
+    data_dir = Path(os.environ.get('NAVIGATOR_DATA_DIR', './runtime-data'))
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return TicketStore(data_dir / 'tickets.sqlite')
+
+
+@app.post('/api/v1/tickets', response_model=TicketInput,
+          dependencies=[Depends(require_api_token)])
+def save_ticket(body: TicketStoreRequest):
+    get_ticket_store().save(body.ticket)
+    return body.ticket
+
+
+@app.get('/api/v1/tickets', response_model=list[TicketInput],
+         dependencies=[Depends(require_api_token)])
+def list_saved_tickets():
+    return get_ticket_store().list_tickets()
