@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from app.auth import require_api_token
 from app.services.knowledge_search import Article, SearchHit, search_articles
 from app.services.demo_repository import DemoTicketRepository
+from app.services.ticket_store import TicketStore
 from app.services.incident_detection import TicketInput, IncidentGroup, group_incidents
 from app.config import get_settings
 from app.services.gigachat_service import GigaChatError, GigaChatService
@@ -100,3 +101,28 @@ def demo_tickets():
     """Synthetic examples only; no access to internal ticketing systems."""
     source = DemoTicketRepository(Path(__file__).resolve().parent.parent / 'data' / 'synthetic_tickets.json')
     return source.list_tickets()
+
+
+class TicketStoreRequest(BaseModel):
+    ticket: TicketInput
+
+
+def get_ticket_store():
+    """Local development store; configure DATA_DIR for a writable private directory."""
+    import os
+    data_dir = Path(os.environ.get('NAVIGATOR_DATA_DIR', './runtime-data'))
+    data_dir.mkdir(parents=True, exist_ok=True)
+    return TicketStore(data_dir / 'tickets.sqlite')
+
+
+@app.post('/api/v1/tickets', response_model=TicketInput,
+          dependencies=[Depends(require_api_token)])
+def save_ticket(body: TicketStoreRequest):
+    get_ticket_store().save(body.ticket)
+    return body.ticket
+
+
+@app.get('/api/v1/tickets', response_model=list[TicketInput],
+         dependencies=[Depends(require_api_token)])
+def list_saved_tickets():
+    return get_ticket_store().list_tickets()
