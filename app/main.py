@@ -1,5 +1,7 @@
 """Authenticated incident-analysis API."""
 from contextlib import asynccontextmanager
+from pathlib import Path
+from fastapi.responses import FileResponse
 
 from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -84,3 +86,8 @@ class KnowledgeSearchRequest(BaseModel):
           dependencies=[Depends(require_api_token)])
 def knowledge_search(body: KnowledgeSearchRequest):
     return search_articles(body.query, body.articles, body.limit)
+
+
+@app.get('/dashboard', include_in_schema=False)
+def dashboard():
+    return FileResponse(Path(__file__).with_name('index.html'))
