@@ -22,3 +22,10 @@ def test_no_group_when_outside_window():
     tickets = [TicketInput(id=str(i), timestamp=base + timedelta(hours=i),
                            description="offline", region="Lipetsk", equipment="POS") for i in range(3)]
     assert group_incidents(tickets, window_minutes=30) == []
+
+
+def test_duplicate_ticket_ids_not_counted_twice():
+    base = datetime(2026, 11, 2, tzinfo=timezone.utc)
+    tickets = [TicketInput(id="same", timestamp=base, description="offline",
+                           region="Lipetsk", equipment="POS") for _ in range(3)]
+    assert group_incidents(tickets) == []
