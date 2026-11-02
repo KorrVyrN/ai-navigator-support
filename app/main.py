@@ -5,6 +5,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.auth import require_api_token
+from app.services.knowledge_search import Article, SearchHit, search_articles
 from app.services.incident_detection import TicketInput, IncidentGroup, group_incidents
 from app.config import get_settings
 from app.services.gigachat_service import GigaChatError, GigaChatService
@@ -71,3 +72,15 @@ class DetectRequest(BaseModel):
 def detect_incidents(body: DetectRequest):
     """Offline grouping; no ticket data is sent to external services."""
     return group_incidents(body.tickets, body.threshold, body.window_minutes)
+
+
+class KnowledgeSearchRequest(BaseModel):
+    query: str = Field(min_length=1, max_length=2000)
+    articles: list[Article] = Field(min_length=1, max_length=500)
+    limit: int = Field(default=3, ge=1, le=10)
+
+
+@app.post('/api/v1/knowledge/search', response_model=list[SearchHit],
+          dependencies=[Depends(require_api_token)])
+def knowledge_search(body: KnowledgeSearchRequest):
+    return search_articles(body.query, body.articles, body.limit)
