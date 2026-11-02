@@ -2,9 +2,9 @@ name: Tests and Coverage
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, codex/complete-api-auth ]
   pull_request:
-    branches: [ main, develop ]
+    branches: [ main, develop, codex/complete-api-auth ]
 
 jobs:
   test:
