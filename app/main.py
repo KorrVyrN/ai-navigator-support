@@ -5,6 +5,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.auth import require_api_token
+from app.services.incident_detection import TicketInput, IncidentGroup, group_incidents
 from app.config import get_settings
 from app.services.gigachat_service import GigaChatError, GigaChatService
 
@@ -57,3 +58,16 @@ async def analyze_incident(body: IncidentRequest, service=Depends(get_service)):
         return await service.analyze_incident(body.description)
     except GigaChatError:
         raise HTTPException(502, 'GigaChat is unavailable; try again later') from None
+
+
+class DetectRequest(BaseModel):
+    tickets: list[TicketInput] = Field(min_length=1, max_length=1000)
+    threshold: int = Field(default=3, ge=2, le=100)
+    window_minutes: int = Field(default=60, ge=1, le=1440)
+
+
+@app.post('/api/v1/incidents/detect', response_model=list[IncidentGroup],
+          dependencies=[Depends(require_api_token)])
+def detect_incidents(body: DetectRequest):
+    """Offline grouping; no ticket data is sent to external services."""
+    return group_incidents(body.tickets, body.threshold, body.window_minutes)
